@@ -1,13 +1,18 @@
 <?php
 
 return [
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'register', 'logout'],
+    /*
+    |--------------------------------------------------------------------------
+    | Cross-Origin Resource Sharing (CORS) Configuration
+    |--------------------------------------------------------------------------
+    */
+
+    // SỬA DÒNG NÀY: Thêm 'auth/*' hoặc để '*' để chấp nhận mọi đường dẫn
+    'paths' => ['api/*', 'auth/*', 'sanctum/csrf-cookie', 'login', 'register', 'logout'],
 
     'allowed_methods' => ['*'],
 
-    // QUAN TRỌNG: Thay '*' bằng địa chỉ cụ thể của frontend
-    // Thêm cả localhost và 127.0.0.1 để chắc chắn
-    'allowed_origins' => ['*'],
+    'allowed_origins' => ['*'], // Chấp nhận tất cả (Vercel, Localhost...)
 
     'allowed_origins_patterns' => [],
 
@@ -17,6 +22,5 @@ return [
 
     'max_age' => 0,
 
-    // QUAN TRỌNG: Đặt thành true để tránh lỗi CORS khi có Auth
-    'supports_credentials' => false,
+    'supports_credentials' => false, // Bắt buộc phải là false nếu allowed_origins là '*'
 ];
