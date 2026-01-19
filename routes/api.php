@@ -93,7 +93,7 @@ Route::prefix('payment')->group(function () {
 // 2. AUTHENTICATED USER ROUTES
 // =========================================================================
 Route::middleware(['auth:api'])->group(function () {
-    
+
     // --- USER ORDERS ---
     Route::prefix('my')->group(function () {
         Route::get('orders', [OrderController::class, 'myOrders']);
@@ -107,7 +107,7 @@ Route::middleware(['auth:api'])->group(function () {
 // 3. ADMIN ROUTES (Sử dụng middleware auth:api thay vì admin)
 // =========================================================================
 Route::middleware(['auth:api'])->prefix('admin')->group(function () {
-    
+
     // --- PRODUCT MANAGEMENT ---
     Route::apiResource('products', ProductController::class)->except(['index', 'show']);
     Route::prefix('products')->group(function () {
@@ -150,16 +150,16 @@ Route::middleware(['auth:api'])->prefix('admin')->group(function () {
     // --- CONTENT MANAGEMENT ---
     Route::apiResource('posts', PostController::class)->except(['index', 'show']);
     Route::apiResource('topics', TopicController::class)->except(['index']);
-    
+
     // --- MENU MANAGEMENT ---
     Route::apiResource('menus', MenuController::class)->except(['index']);
-    
+
     // --- BANNER MANAGEMENT ---
     Route::apiResource('banners', BannerController::class)->except(['index']);
-    
+
     // --- ATTRIBUTE MANAGEMENT ---
     Route::apiResource('attributes', AttributeController::class);
-    
+
     // --- CONTACT MANAGEMENT ---
     Route::apiResource('contacts', ContactController::class)->only(['index', 'show', 'destroy']);
     Route::prefix('contacts')->group(function () {
@@ -173,7 +173,7 @@ Route::middleware(['auth:api'])->prefix('admin')->group(function () {
 // =========================================================================
 
 // --- PUBLIC DATA (SẢN PHẨM & DANH MỤC) ---
-Route::get('products', [ProductController::class, 'index']); 
+Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{slug}', [ProductController::class, 'show']);
 
 // --- QUẢN LÝ DANH MỤC ---
@@ -201,9 +201,9 @@ Route::get('/vnpay/ipn', [VnPayController::class, 'vnpayIpn']);
 Route::get('/vnpay/check-return', [VnPayController::class, 'checkVnpayOrder']);
 
 // --- QUẢN LÝ ĐƠN HÀNG (ADMIN) ---
-Route::get('orders', [OrderController::class, 'index']);       
-Route::get('orders/{id}', [OrderController::class, 'show']);   
-Route::put('orders/{id}', [OrderController::class, 'update']); 
+Route::get('orders', [OrderController::class, 'index']);
+Route::get('orders/{id}', [OrderController::class, 'show']);
+Route::put('orders/{id}', [OrderController::class, 'update']);
 Route::delete('orders/{id}', [OrderController::class, 'destroy']);
 
 // --- QUẢN LÝ SẢN PHẨM (ADMIN) ---
@@ -233,9 +233,6 @@ Route::get('menus/{id}', [MenuController::class, 'show']);
 Route::post('menus', [MenuController::class, 'store']);
 Route::put('menus/{id}', [MenuController::class, 'update']);
 Route::delete('menus/{id}', [MenuController::class, 'destroy']);
-
-// --- QUẢN LÝ NGƯỜI DÙNG (USERS) ---
-Route::apiResource('users', UserController::class);
 
 // --- QUẢN LÝ CHỦ ĐỀ (TOPIC) ---
 Route::get('topics', [TopicController::class, 'index']);
