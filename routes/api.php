@@ -305,10 +305,9 @@ Route::post('/debug/upload-test', function(Request $request) {
     
     try {
         // Cách 1: Dùng package
-        $upload = Cloudinary::upload($file->getRealPath());
+        // $upload = Cloudinary::upload($file->getRealPath());
         
         // Cách 2: Dùng API trực tiếp
-        /*
         $cloudinary = new \Cloudinary\Cloudinary([
             'cloud' => [
                 'cloud_name' => 'dskkphbyf',
@@ -320,7 +319,6 @@ Route::post('/debug/upload-test', function(Request $request) {
         $upload = $cloudinary->uploadApi()->upload($file->getRealPath(), [
             'folder' => 'test'
         ]);
-        */
         
         return response()->json([
             'success' => true,
