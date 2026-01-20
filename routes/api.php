@@ -281,34 +281,61 @@ Route::fallback(function () {
     ], 404);
 });
 
-Route::post('/test-upload', function(Request $request) {
-    $request->validate([
-        'image' => 'required|image|max:2048'
+Route::get('/debug/cloudinary', function() {
+    return response()->json([
+        'environment' => [
+            'CLOUDINARY_URL_set' => !empty(env('CLOUDINARY_URL')),
+            'CLOUDINARY_CLOUD_NAME' => env('CLOUDINARY_CLOUD_NAME'),
+            'CLOUDINARY_API_KEY' => substr(env('CLOUDINARY_API_KEY', ''), 0, 5) . '...',
+            'CLOUDINARY_API_SECRET' => !empty(env('CLOUDINARY_API_SECRET')),
+        ],
+        'config' => [
+            'cloudinary.cloud_name' => config('cloudinary.cloud_name'),
+            'cloudinary.api_key_exists' => !empty(config('cloudinary.api_key')),
+            'cloudinary.upload_preset' => config('cloudinary.upload_preset'),
+        ]
     ]);
+});
 
+Route::post('/debug/upload-test', function(Request $request) {
+    $request->validate(['file' => 'required|image']);
+    
+    // Tạo file test đơn giản
+    $file = $request->file('file');
+    
     try {
-        // Test 1: Upload không preset
-        $upload1 = Cloudinary::upload($request->file('image')->getRealPath());
+        // Cách 1: Dùng package
+        $upload = Cloudinary::upload($file->getRealPath());
         
-        // Test 2: Upload có preset
-        $upload2 = Cloudinary::upload($request->file('image')->getRealPath(), [
-            'upload_preset' => 'ml_default'
+        // Cách 2: Dùng API trực tiếp
+        /*
+        $cloudinary = new \Cloudinary\Cloudinary([
+            'cloud' => [
+                'cloud_name' => 'dskkphbyf',
+                'api_key'    => '592767544744234',
+                'api_secret' => '9VUl-XPI8pYDLmO7gSz-_wwXuK4',
+            ]
         ]);
-
+        
+        $upload = $cloudinary->uploadApi()->upload($file->getRealPath(), [
+            'folder' => 'test'
+        ]);
+        */
+        
         return response()->json([
-            'config' => [
-                'cloud_name' => config('cloudinary.cloud_name'),
-                'api_key' => config('cloudinary.api_key'),
-                'upload_preset' => config('cloudinary.upload_preset')
-            ],
-            'upload_without_preset' => $upload1->getSecurePath(),
-            'upload_with_preset' => $upload2->getSecurePath(),
-            'public_id' => $upload2->getPublicId()
+            'success' => true,
+            'url' => $upload->getSecurePath(),
+            'public_id' => $upload->getPublicId(),
+            'info' => $upload->getArrayCopy()
         ]);
+        
     } catch (\Exception $e) {
+        \Log::error('Debug Upload Error: ' . $e->getMessage());
+        
         return response()->json([
+            'success' => false,
             'error' => $e->getMessage(),
-            'config' => config('cloudinary')
+            'trace' => $e->getTraceAsString()
         ], 500);
     }
 });

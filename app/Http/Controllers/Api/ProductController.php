@@ -94,23 +94,42 @@ public function store(Request $request)
 
     DB::beginTransaction();
     try {
-        // UPLOAD THUMBNAIL
+        \Log::info('Starting product creation...');
+        \Log::info('File received: ' . ($request->hasFile('thumbnail') ? 'Yes' : 'No'));
+
+        // ====== DEBUG: Kiểm tra Cloudinary config ======
+        \Log::info('Cloudinary Config:', [
+            'cloud_name' => config('cloudinary.cloud_name'),
+            'api_key_exists' => !empty(config('cloudinary.api_key')),
+            'upload_preset' => config('cloudinary.upload_preset')
+        ]);
+        // ===============================================
+
         $thumbnailPath = null;
         if ($request->hasFile('thumbnail')) {
-            // Cách 1: Dùng upload preset
-            $uploadedFile = Cloudinary::upload($request->file('thumbnail')->getRealPath(), [
-                'upload_preset' => config('cloudinary.upload_preset', 'ml_default'),
-                'folder' => 'products'
-            ]);
-            
-            // Cách 2: Hoặc upload đơn giản
-            // $uploadedFile = Cloudinary::upload($request->file('thumbnail')->getRealPath());
-            
-            $thumbnailPath = $uploadedFile->getSecurePath();
-            
-            \Log::info('Thumbnail uploaded: ' . $thumbnailPath);
+            try {
+                \Log::info('Uploading thumbnail to Cloudinary...');
+                
+                // CÁCH 1: Upload đơn giản nhất (không preset)
+                $uploadedFile = Cloudinary::upload(
+                    $request->file('thumbnail')->getRealPath(),
+                    ['folder' => 'products']
+                );
+                
+                \Log::info('Cloudinary upload response:', [
+                    'secure_url' => $uploadedFile->getSecurePath(),
+                    'public_id' => $uploadedFile->getPublicId()
+                ]);
+                
+                $thumbnailPath = $uploadedFile->getSecurePath();
+                
+            } catch (\Exception $uploadError) {
+                \Log::error('Cloudinary Upload Error: ' . $uploadError->getMessage());
+                throw new \Exception('Failed to upload thumbnail: ' . $uploadError->getMessage());
+            }
         }
 
+        // Tạo sản phẩm
         $product = Product::create([
             'name' => $request->name,
             'slug' => Str::slug($request->name) . '-' . time(),
@@ -124,38 +143,56 @@ public function store(Request $request)
             'created_by' => auth('api')->id() ?? 1,
         ]);
 
-        // UPLOAD GALLERY IMAGES
+        \Log::info('Product created with ID: ' . $product->id);
+
+        // Upload gallery
         if ($request->hasFile('gallery')) {
+            \Log::info('Uploading ' . count($request->file('gallery')) . ' gallery images');
+            
             foreach ($request->file('gallery') as $index => $file) {
-                $uploaded = Cloudinary::upload($file->getRealPath(), [
-                    'upload_preset' => config('cloudinary.upload_preset', 'ml_default'),
-                    'folder' => 'products/gallery'
-                ]);
-                
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'image' => $uploaded->getSecurePath(),
-                    'alt' => $product->name,
-                ]);
+                try {
+                    $uploaded = Cloudinary::upload(
+                        $file->getRealPath(),
+                        ['folder' => 'products/gallery']
+                    );
+                    
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image' => $uploaded->getSecurePath(),
+                        'alt' => $product->name,
+                    ]);
+                    
+                    \Log::info('Gallery image ' . ($index + 1) . ' uploaded');
+                } catch (\Exception $e) {
+                    \Log::error('Failed to upload gallery image: ' . $e->getMessage());
+                    // Continue với ảnh khác
+                }
             }
         }
 
         DB::commit();
+        
+        \Log::info('Product creation completed successfully');
+        
         return response()->json([
             'status' => true,
             'message' => 'Thêm sản phẩm thành công',
-            'product' => $product
+            'product' => $product->load('images')
         ], 201);
 
     } catch (\Exception $e) {
         DB::rollBack();
-        \Log::error('Product Store Error: ' . $e->getMessage());
-        \Log::error('File: ' . $e->getFile() . ' Line: ' . $e->getLine());
+        \Log::error('Product Store Error:', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
         
         return response()->json([
             'status' => false,
-            'message' => 'Lỗi khi upload ảnh lên Cloudinary',
-            'error' => $e->getMessage()
+            'message' => 'Lỗi khi tạo sản phẩm: ' . $e->getMessage(),
+            'debug' => 'Check server logs for details' // Chỉ để debug
         ], 500);
     }
 }
