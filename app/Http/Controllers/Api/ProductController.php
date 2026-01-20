@@ -81,89 +81,84 @@ class ProductController extends Controller
     }
 
     // Tạo mới sản phẩm (Giữ nguyên)
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:products,name',
-            'price_buy' => 'required|numeric|min:0',
-            'category_id' => 'required|exists:categories,id',
-            'thumbnail' => 'required|image|max:5120',
-            'content' => 'required',
-            'gallery.*' => 'image|max:5120',
-        ], [
-            'name.unique' => 'Tên sản phẩm đã tồn tại',
-            'category_id.exists' => 'Danh mục không hợp lệ',
-            'thumbnail.max' => 'Ảnh đại diện không được quá 5MB'
+public function store(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:255|unique:products,name',
+        'price_buy' => 'required|numeric|min:0',
+        'category_id' => 'required|exists:categories,id',
+        'thumbnail' => 'required|image|max:5120',
+        'content' => 'required',
+        'gallery.*' => 'image|max:5120',
+    ]);
+
+    DB::beginTransaction();
+    try {
+        // UPLOAD THUMBNAIL
+        $thumbnailPath = null;
+        if ($request->hasFile('thumbnail')) {
+            // Cách 1: Dùng upload preset
+            $uploadedFile = Cloudinary::upload($request->file('thumbnail')->getRealPath(), [
+                'upload_preset' => config('cloudinary.upload_preset', 'ml_default'),
+                'folder' => 'products'
+            ]);
+            
+            // Cách 2: Hoặc upload đơn giản
+            // $uploadedFile = Cloudinary::upload($request->file('thumbnail')->getRealPath());
+            
+            $thumbnailPath = $uploadedFile->getSecurePath();
+            
+            \Log::info('Thumbnail uploaded: ' . $thumbnailPath);
+        }
+
+        $product = Product::create([
+            'name' => $request->name,
+            'slug' => Str::slug($request->name) . '-' . time(),
+            'category_id' => $request->category_id,
+            'price_buy' => $request->price_buy,
+            'content' => $request->input('content'),
+            'description' => $request->description,
+            'thumbnail' => $thumbnailPath,
+            'status' => $request->has('status') ? $request->status : 1,
+            'is_new' => $request->status_new ?? 1,
+            'created_by' => auth('api')->id() ?? 1,
         ]);
 
-        DB::beginTransaction();
-        try {
-            $thumbnailPath = null;
-            if ($request->hasFile('thumbnail')) {
-                $thumbnailPath = Cloudinary::upload($request->file('thumbnail')->getRealPath(), [
-                    'folder' => 'products'
-                ])->getSecurePath(); // Lấy link https trực tiếp
+        // UPLOAD GALLERY IMAGES
+        if ($request->hasFile('gallery')) {
+            foreach ($request->file('gallery') as $index => $file) {
+                $uploaded = Cloudinary::upload($file->getRealPath(), [
+                    'upload_preset' => config('cloudinary.upload_preset', 'ml_default'),
+                    'folder' => 'products/gallery'
+                ]);
+                
+                ProductImage::create([
+                    'product_id' => $product->id,
+                    'image' => $uploaded->getSecurePath(),
+                    'alt' => $product->name,
+                ]);
             }
-
-            $product = Product::create([
-                'name' => $request->name,
-                'slug' => Str::slug($request->name) . '-' . time(),
-                'category_id' => $request->category_id,
-                'price_buy' => $request->price_buy,
-                'content' => $request->input('content'),
-                'description' => $request->description,
-                'thumbnail' => $thumbnailPath,
-                'status' => $request->has('status') ? $request->status : 1,
-                'is_new' => $request->status_new ?? 1,
-                'created_by' => auth('api')->id() ?? 1,
-            ]);
-
-            if ($request->has('attributes')) {
-                $attributes = json_decode($request->input('attributes'), true);
-                if (is_array($attributes)) {
-                    foreach ($attributes as $attr) {
-                        if (!empty($attr['attribute_id']) && !empty($attr['value'])) {
-                            ProductAttribute::create([
-                                'product_id' => $product->id,
-                                'attribute_id' => $attr['attribute_id'],
-                                'value' => $attr['value']
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            if ($request->hasFile('gallery')) {
-                foreach ($request->file('gallery') as $file) {
-                    $path = Cloudinary::upload($file->getRealPath(), [
-                        'folder' => 'products/gallery'
-                    ])->getSecurePath();
-                    ProductImage::create([
-                        'product_id' => $product->id,
-                        'image' => $path,
-                        'alt' => $product->name,
-                    ]);
-                }
-            }
-
-            DB::commit();
-            return response()->json([
-                'status' => true,
-                'message' => 'Thêm sản phẩm thành công',
-                'product' => $product
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            if (isset($thumbnailPath))
-                Storage::disk('cloudinary')->delete($thumbnailPath);
-            return response()->json([
-                'status' => false,
-                'message' => 'Lỗi server: ' . $e->getMessage()
-            ], 500);
         }
-    }
 
+        DB::commit();
+        return response()->json([
+            'status' => true,
+            'message' => 'Thêm sản phẩm thành công',
+            'product' => $product
+        ], 201);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        \Log::error('Product Store Error: ' . $e->getMessage());
+        \Log::error('File: ' . $e->getFile() . ' Line: ' . $e->getLine());
+        
+        return response()->json([
+            'status' => false,
+            'message' => 'Lỗi khi upload ảnh lên Cloudinary',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
     // --- CẬP NHẬT SẢN PHẨM (ĐÃ SỬA ĐỂ HỖ TRỢ XÓA ẢNH & THÊM ẢNH) ---
     public function update(Request $request, $id)
     {

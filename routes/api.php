@@ -280,3 +280,35 @@ Route::fallback(function () {
         'message' => 'Route not found'
     ], 404);
 });
+
+Route::post('/test-upload', function(Request $request) {
+    $request->validate([
+        'image' => 'required|image|max:2048'
+    ]);
+
+    try {
+        // Test 1: Upload không preset
+        $upload1 = Cloudinary::upload($request->file('image')->getRealPath());
+        
+        // Test 2: Upload có preset
+        $upload2 = Cloudinary::upload($request->file('image')->getRealPath(), [
+            'upload_preset' => 'ml_default'
+        ]);
+
+        return response()->json([
+            'config' => [
+                'cloud_name' => config('cloudinary.cloud_name'),
+                'api_key' => config('cloudinary.api_key'),
+                'upload_preset' => config('cloudinary.upload_preset')
+            ],
+            'upload_without_preset' => $upload1->getSecurePath(),
+            'upload_with_preset' => $upload2->getSecurePath(),
+            'public_id' => $upload2->getPublicId()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'config' => config('cloudinary')
+        ], 500);
+    }
+});
