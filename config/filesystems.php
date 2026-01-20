@@ -59,6 +59,9 @@ return [
             'throw' => false,
             'report' => false,
         ],
+        'cloudinary' => [
+            'driver' => 'cloudinary',
+        ],
 
     ],
 
@@ -76,8 +79,6 @@ return [
     'links' => [
         public_path('storage') => storage_path('app/public'),
     ],
-    'cloudinary' => [
-        'driver' => 'cloudinary',
-    ],
+
 
 ];
