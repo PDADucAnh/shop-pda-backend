@@ -99,7 +99,7 @@ class ProductController extends Controller
         try {
             $thumbnailPath = null;
             if ($request->hasFile('thumbnail')) {
-                $thumbnailPath = $request->file('thumbnail')->store('products', 'public');
+                $thumbnailPath = $request->file('thumbnail')->store('products', 'cloudinary');
             }
 
             $product = Product::create([
@@ -132,7 +132,7 @@ class ProductController extends Controller
 
             if ($request->hasFile('gallery')) {
                 foreach ($request->file('gallery') as $file) {
-                    $path = $file->store('products/gallery', 'public');
+                    $path = $file->store('products/gallery', 'cloudinary');
                     ProductImage::create([
                         'product_id' => $product->id,
                         'image' => $path,
@@ -151,7 +151,7 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             if (isset($thumbnailPath))
-                Storage::disk('public')->delete($thumbnailPath);
+                Storage::disk('cloudinary')->delete($thumbnailPath);
             return response()->json([
                 'status' => false,
                 'message' => 'Lỗi server: ' . $e->getMessage()
@@ -185,10 +185,10 @@ class ProductController extends Controller
             // 2. Handle Thumbnail (Replace if new one uploaded)
             $thumbnailPath = $product->thumbnail;
             if ($request->hasFile('thumbnail')) {
-                if ($product->thumbnail && Storage::disk('public')->exists($product->thumbnail)) {
-                    Storage::disk('public')->delete($product->thumbnail);
+                if ($product->thumbnail && Storage::disk('cloudinary')->exists($product->thumbnail)) {
+                    Storage::disk('cloudinary')->delete($product->thumbnail);
                 }
-                $thumbnailPath = $request->file('thumbnail')->store('products', 'public');
+                $thumbnailPath = $request->file('thumbnail')->store('products', 'cloudinary');
             }
 
             // 3. Update Basic Info
@@ -233,8 +233,8 @@ class ProductController extends Controller
 
                 foreach ($imagesToDelete as $img) {
                     // Xóa file vật lý trong storage
-                    if (Storage::disk('public')->exists($img->image)) {
-                        Storage::disk('public')->delete($img->image);
+                    if (Storage::disk('cloudinary')->exists($img->image)) {
+                        Storage::disk('cloudinary')->delete($img->image);
                     }
                     // Xóa bản ghi trong database
                     $img->delete();
@@ -244,7 +244,7 @@ class ProductController extends Controller
             // --- 6. LOGIC CŨ: THÊM ẢNH MỚI (APPEND) ---
             if ($request->hasFile('gallery')) {
                 foreach ($request->file('gallery') as $file) {
-                    $path = $file->store('products/gallery', 'public');
+                    $path = $file->store('products/gallery', 'cloudinary');
                     ProductImage::create([
                         'product_id' => $product->id,
                         'image' => $path,
@@ -274,8 +274,8 @@ class ProductController extends Controller
     {
         try {
             $product = Product::findOrFail($id);
-            if ($product->thumbnail && Storage::disk('public')->exists($product->thumbnail)) {
-                Storage::disk('public')->delete($product->thumbnail);
+            if ($product->thumbnail && Storage::disk('cloudinary')->exists($product->thumbnail)) {
+                Storage::disk('cloudinary')->delete($product->thumbnail);
             }
             $product->delete();
 
