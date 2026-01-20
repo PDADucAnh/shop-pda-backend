@@ -1,6 +1,19 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
+// Route tạm thời để dọn dẹp hệ thống
+Route::get('/debug-cloudinary', function () {
+    Artisan::call('config:clear'); // Xóa cache cấu hình
+    Artisan::call('cache:clear');  // Xóa cache hệ thống
+    
+    // Kiểm tra xem Laravel có thấy cấu hình cloud_name không
+    return [
+        'message' => 'Đã xóa cache cấu hình!',
+        'cloudinary_cloud_name' => config('cloudinary.cloud_name'),
+        'all_cloudinary_config' => config('cloudinary'),
+    ];
+});
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CategoryController;
