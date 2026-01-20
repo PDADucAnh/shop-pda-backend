@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Product;
@@ -99,7 +100,9 @@ class ProductController extends Controller
         try {
             $thumbnailPath = null;
             if ($request->hasFile('thumbnail')) {
-                $thumbnailPath = $request->file('thumbnail')->store('products', 'cloudinary');
+                $thumbnailPath = Cloudinary::upload($request->file('thumbnail')->getRealPath(), [
+                    'folder' => 'products'
+                ])->getSecurePath(); // Lấy link https trực tiếp
             }
 
             $product = Product::create([
@@ -132,7 +135,9 @@ class ProductController extends Controller
 
             if ($request->hasFile('gallery')) {
                 foreach ($request->file('gallery') as $file) {
-                    $path = $file->store('products/gallery', 'cloudinary');
+                    $path = Cloudinary::upload($file->getRealPath(), [
+                        'folder' => 'products/gallery'
+                    ])->getSecurePath();
                     ProductImage::create([
                         'product_id' => $product->id,
                         'image' => $path,
@@ -185,10 +190,11 @@ class ProductController extends Controller
             // 2. Handle Thumbnail (Replace if new one uploaded)
             $thumbnailPath = $product->thumbnail;
             if ($request->hasFile('thumbnail')) {
-                if ($product->thumbnail && Storage::disk('cloudinary')->exists($product->thumbnail)) {
-                    Storage::disk('cloudinary')->delete($product->thumbnail);
+                if ($product->thumbnail && str_contains($product->thumbnail, 'cloudinary')) {
+                    $publicId = basename($product->thumbnail, '.' . pathinfo($product->thumbnail, PATHINFO_EXTENSION));
+                    Cloudinary::destroy('products/' . $publicId);
                 }
-                $thumbnailPath = $request->file('thumbnail')->store('products', 'cloudinary');
+                $thumbnailPath = Cloudinary::upload($request->file('thumbnail')->getRealPath(), ['folder' => 'products'])->getSecurePath();
             }
 
             // 3. Update Basic Info
